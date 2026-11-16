@@ -220,4 +220,5 @@ CLAUDE.md
 .DS_Store
 output/
 data_small/
+tmp/
 data_parsebench-2/

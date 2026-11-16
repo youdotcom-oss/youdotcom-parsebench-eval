@@ -3288,3 +3288,31 @@ def register_parse_pipelines(register_fn) -> None:  # type: ignore[no-untyped-de
             },
         )
     )
+
+    # =========================================================================
+    # URL extract APIs (document sent as its public Hugging Face URL)
+    # =========================================================================
+    # randomize_external_filename must stay False: the provider derives the HF URL
+    # from the docs/<category>/<name>.pdf or data_parsebench-2/<subset>/<name>.pdf path.
+    for _pipeline, _provider, _extra in (
+        # To attach pricing, add a cost key to the pipeline's extra dict below
+        # (e.g. {"cost_per_request_usd": ...}, {"cost_per_pdf_page_usd": ...},
+        # or {"credit_rate_usd": ...}), or set it in base_config.
+        ("youcom_extract", "youcom_extract", {}),
+        (
+            "youcom_extract_lite",
+            "youcom_extract",
+            {"parse_effort": "lite"},
+        ),
+        ("exa_contents", "exa_contents", {}),
+        ("parallel_extract", "parallel_extract", {}),
+        ("tavily_extract", "tavily_extract", {}),
+    ):
+        register_fn(
+            PipelineSpec(
+                pipeline_name=_pipeline,
+                provider_name=_provider,
+                product_type=ProductType.PARSE,
+                config={"randomize_external_filename": False, **_extra},
+            )
+        )

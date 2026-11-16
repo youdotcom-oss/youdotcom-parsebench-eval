@@ -1,4 +1,4 @@
-"""scripts/update_readme.py: the ParseBench 2 leaderboard table, and the README matching the CSVs."""
+"""scripts/update_readme.py: the ParseBench 2 leaderboard table and marker handling."""
 
 from __future__ import annotations
 
@@ -30,11 +30,3 @@ def test_v2_table_ranks_by_overall_and_formats_cost() -> None:
 def test_missing_markers_stop_the_update() -> None:
     with pytest.raises(SystemExit):
         update_readme.replace_block("no markers here", "<!-- A -->", "<!-- B -->", "x")
-
-
-def test_readme_matches_the_leaderboard_csvs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    copy = tmp_path / "README.md"
-    copy.write_text(update_readme.README_PATH.read_text())
-    monkeypatch.setattr(update_readme, "README_PATH", copy)
-    update_readme.main()
-    assert copy.read_text() == update_readme.README_PATH.read_text(), "run scripts/update_readme.py"

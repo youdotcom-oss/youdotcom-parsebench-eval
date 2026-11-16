@@ -293,6 +293,50 @@ parse workflow), `effort`, `prompt_hint`, `figure_enhancement`, `credit_rate_usd
 | `nutrient_dws_understand` | `understand` mode, adds semantic enrichment | `NUTRIENT_DWS_API_KEY` |
 | **`nutrient_dws_agentic`** | `agentic` mode, visual reasoning (In paper: *Nutrient DWS (Agentic)*) | `NUTRIENT_DWS_API_KEY` |
 
+---
+
+## URL Extract Pipelines
+
+These pipelines call hosted web extract APIs that take a public URL instead of a file upload. You only
+need an API key in your `.env` file. The provider maps each local dataset path to the same PDF in the
+public Hugging Face dataset (`llamaindex/ParseBench` for v1, `llamaindex/ParseBench-2` pinned to a fixed
+revision for ParseBench 2), so only documents from those datasets can be evaluated. Every pipeline sets
+`randomize_external_filename: False`; keep it if you register a variant. Shared logic lives in
+`src/parse_bench/inference/providers/parse/_url_extract_base.py`.
+
+The APIs return markdown only, with no bounding boxes, so the layout group (v1) and `layout` subset
+(ParseBench 2) can't be scored. Markdown pipe tables are converted to HTML before evaluation.
+Recommended `--max_concurrent 10`.
+
+| Pipeline | Description | Env Var |
+|---|---|---|
+| `youcom_extract` | You.com Extract with default `parse_effort: "standard"` | `YOU_API_KEY` |
+| `youcom_extract_lite` | You.com Extract with `parse_effort: "lite"` | `YOU_API_KEY` |
+| `exa_contents` | Exa `/contents`; cost from the response's `costDollars.total` | `EXA_API_KEY` |
+| `parallel_extract` | Parallel `/v1/extract`; $0.001 per request | `PARALLEL_API_KEY` |
+| `tavily_extract` | Tavily `/extract`, advanced depth; 0.4 credits per URL at $0.005 per credit | `TAVILY_API_KEY` |
+
+Run inference one v1 group at a time, skipping layout, then score without calling the API again:
+
+```bash
+P=youcom_extract
+for g in chart table text_content text_formatting; do
+  uv run parse-bench inference run $P --group $g --output_dir output --max_concurrent 10 --no_rich True
+done
+uv run parse-bench run $P --skip_inference True --open_report False
+```
+
+For ParseBench 2, pass every subset except `layout`:
+
+```bash
+uv run parse-bench run youcom_extract --dataset parsebench-2 --max_concurrent 10 --open_report False \
+  --group text,headings,strikeout,underline,tables,complex_table_headers,financial_tables,insurance_filing_tables,dense_tables,charts,forms,fillable_forms
+```
+
+See the README (`URL extract providers`) for cost config keys and more run options.
+
+---
+
 ## Self-hosted Model Pipelines
 
 These pipelines require you to deploy the model on your own infrastructure (e.g., via vLLM, Modal, etc.) and set the endpoint URL in `.env`.

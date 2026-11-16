@@ -75,6 +75,10 @@ _PROVIDER_MODULES = [
     "warp_ingest",
     "wevisdoc",
     "oi_parser",
+    "youcom_extract",
+    "exa_contents",
+    "parallel_extract",
+    "tavily_extract",
 ]
 
 

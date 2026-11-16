@@ -11,7 +11,7 @@ Before writing any code, research the provider:
 1. If the user gave a URL, fetch and read it to understand the API/SDK.
 2. Determine:
    - **Product type**: Is this a `PARSE` provider (PDF -> markdown) or `LAYOUT_DETECTION` provider (PDF -> bounding boxes)?
-   - **Integration style**: Cloud API (needs API key), self-hosted model (needs endpoint URL), or local library (no external deps)?
+   - **Integration style**: Cloud API (needs API key), URL extract API (cloud API that takes a public document URL instead of a file upload), self-hosted model (needs endpoint URL), or local library (no external deps)?
    - **SDK/API pattern**: Does it have a Python SDK? REST API? What's the auth method?
    - **Input format**: Does it accept PDF files directly, or does it need images (page screenshots)?
    - **Output format**: What does the raw response look like? Markdown? HTML? JSON with pages?
@@ -24,6 +24,7 @@ Look at the existing providers and pick the best template:
 
 - **Cloud API with Python SDK** (e.g., OpenAI, Anthropic, Google): Copy from `src/parse_bench/inference/providers/parse/openai.py` or `anthropic_haiku.py`
 - **Cloud API with REST calls**: Copy from `src/parse_bench/inference/providers/parse/reducto.py` or `chunkr.py`
+- **URL extract API** (takes a URL, returns markdown): Subclass `UrlExtractProvider` from `src/parse_bench/inference/providers/parse/_url_extract_base.py`; copy from `parallel_extract.py` or `tavily_extract.py`. Set `display_name` and `api_key_env`, and implement only `_call(url)` (returns request body, response JSON and markdown) and `_cost(raw_output)`. The base class builds the Hugging Face URL, handles retries and normalizes the markdown.
 - **Self-hosted vLLM endpoint**: Copy from `src/parse_bench/inference/providers/parse/gemma4.py` or `qwen3_5.py`
 - **Local library (no API)**: Copy from `src/parse_bench/inference/providers/parse/pymupdf.py` or `tesseract.py`
 - **Layout detection**: Copy from `src/parse_bench/inference/providers/layoutdet/docling.py`
@@ -129,12 +130,15 @@ Naming conventions:
 - Pipeline names: `{provider}_{variant}` (e.g., `openai_gpt5_mini_parse`, `reducto_agentic_chart`)
 - Add a comment section header for the new provider (see existing examples in the file)
 - Register multiple variants if the provider has different modes/tiers
+- URL extract pipelines must set `"randomize_external_filename": False` in `config`, or the provider can't map the local path to its Hugging Face URL (see the `URL extract APIs` section in `parse.py`)
 
 ---
 
 ## Step 6: Update documentation
 
-Add the new pipeline(s) to `docs/pipelines.md` under the appropriate section (Cloud API / Self-hosted / Local).
+Add the new pipeline(s) to `docs/pipelines.md` under the appropriate section (Cloud API / URL Extract / Self-hosted / Local).
+
+For a URL extract provider, also add a row to the table under `## URL extract providers` in `README.md` and the env var table under `## Setup and API keys`, and add the env var to the `URL extract APIs` block in `.env.example`.
 
 Use the existing table format:
 
@@ -158,6 +162,9 @@ uv run parse-bench pipelines
 
 # Dry-run test on a single file (if the user has API access)
 uv run parse-bench run <pipeline_name> --test
+
+# URL extract providers return no bounding boxes: run one non-layout group instead
+uv run parse-bench run <pipeline_name> --test --group chart
 ```
 
 If there are import errors or missing dependencies, fix them. The lazy import pattern in `parse/__init__.py` means missing optional deps won't crash the whole system — they'll just skip that provider.
@@ -171,4 +178,5 @@ If there are import errors or missing dependencies, fix them. The lazy import pa
 - [ ] Module added to `_PROVIDER_MODULES` list in `__init__.py`
 - [ ] Pipeline(s) registered in `pipelines/parse.py` or `pipelines/layout.py`
 - [ ] `docs/pipelines.md` updated with new pipeline entries
+- [ ] URL extract providers only: `randomize_external_filename: False` set, `README.md` tables and `.env.example` updated
 - [ ] `uv run parse-bench pipelines` shows the new pipeline(s)

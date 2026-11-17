@@ -13,6 +13,8 @@
 
 This repository adds five **URL extract** pipelines for web extract APIs that take a public URL instead of a file upload: you.com Extract, Exa, Parallel and Tavily. This README covers how to run ParseBench evals with these and other providers.
 
+**[Latest results](docs/results.md)** — headline accuracy for ParseBench v1 & 2 across the URL extract providers.
+
 - [Published results for the URL extract providers](#published-results-for-the-url-extract-providers)
 - [Install](#install)
 - [Setup and API keys](#setup-and-api-keys)
@@ -132,20 +134,19 @@ This runs inference, scores the results and opens the report (add `--open_report
 
 ## URL extract providers
 
-| Pipeline | API | Env var |
-|---|---|---|
-| `youcom_extract` | you.com `POST https://ydc-index.io/v1/extract` with default `parse_effort: "standard"` | `YOU_API_KEY` |
-| `youcom_extract_lite` | you.com `POST https://ydc-index.io/v1/extract` with `parse_effort: "lite"` | `YOU_API_KEY` |
-| `exa_contents` | Exa `POST https://api.exa.ai/contents` | `EXA_API_KEY` |
-| `parallel_extract` | Parallel `POST https://api.parallel.ai/v1/extract` | `PARALLEL_API_KEY` |
-| `tavily_extract` | Tavily `POST https://api.tavily.com/extract` (advanced depth) | `TAVILY_API_KEY` |
+| Pipeline | API | Env var | API request args |
+|---|---|---|---|
+| `youcom_extract` | you.com `POST https://ydc-index.io/v1/extract` with default `parse_effort: "standard"` | `YOU_API_KEY` | `url`, `full_page.extraction_formats: ["markdown", "html"]`, `timeout: 100`, `max_age: 0` (no `parse_effort` key sent → API default `"standard"`) |
+| `youcom_extract_lite` | you.com `POST https://ydc-index.io/v1/extract` with `parse_effort: "lite"` | `YOU_API_KEY` | same as `youcom_extract` plus `parse_effort: "lite"` |
+| `exa_contents` | Exa `POST https://api.exa.ai/contents` | `EXA_API_KEY` | `urls: [url]`, `text: true`, `maxAgeHours: 0`, `livecrawlTimeout: 60000` |
+| `parallel_extract` | Parallel `POST https://api.parallel.ai/v1/extract` | `PARALLEL_API_KEY` | `urls: [url]`, `advanced_settings.full_content.max_chars_per_result: 200000`, `advanced_settings.fetch_policy.max_age_seconds: 600`, `advanced_settings.fetch_policy.timeout_seconds: 60` |
+| `tavily_extract` | Tavily `POST https://api.tavily.com/extract` (advanced depth) | `TAVILY_API_KEY` | `urls: [url]`, `extract_depth: "advanced"`, `format: "markdown"`, `include_usage: true`, `timeout: 60` |
 
 Tips for every URL extract provider:
 
 - `--max_concurrent 10` is the recommended setting (the CLI default is 20). On a 429 the provider honors `Retry-After`, up to 60 seconds, before the runner's own backoff.
 - Running several providers at once (one shell or background job each) is fine since they hit different APIs.
 - These APIs return markdown only, with no bounding boxes, so the layout (visual grounding) dimension can't be scored. The commands below skip it.
-- On macOS, wrap long runs in `caffeinate -i` (for example `caffeinate -i bash run_youcom.sh`), or the machine can sleep and leave HTTP connections hanging.
 - Reruns resume: documents that already have a `*.result.json` are skipped, so rerunning the same command retries only the failures. Use `--force True` to redo everything. Each inference pass writes failures to `_errors.json` in the pipeline output directory.
 
 ## Running ParseBench v1
